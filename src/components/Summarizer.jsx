@@ -1,6 +1,5 @@
 // src/components/Summarizer.jsx
 import React, { useState } from "react";
-import { summarizeText } from "../utils";
 
 export default function Summarizer() {
   const [input, setInput] = useState("");
@@ -11,8 +10,20 @@ export default function Summarizer() {
     setLoading(true);
     setSummary("");
     try {
-      const result = await summarizeText(input);
-      setSummary(result);
+      const response = await fetch("http://localhost:5000/api/summarize", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ content: input }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Summarization API failed");
+      }
+
+      const result = await response.json();
+      setSummary(result.summary || "Could not generate summary");
     } catch (err) {
       setSummary("❌ " + err.message);
     }

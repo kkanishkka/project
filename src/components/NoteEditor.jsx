@@ -5,11 +5,12 @@ import 'react-quill/dist/quill.snow.css';
 import { X, Save, Sparkles } from 'lucide-react';
 
 const NoteEditor = ({ note, onClose }) => {
-  const { addNote, updateNote } = useData();
+  const { addNote, updateNote, logStreakEvent } = useData();
   const [formData, setFormData] = useState({
     title: '',
     subject: '',
-    content: ''
+    content: '',
+    revisionDate: ''
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -26,7 +27,8 @@ const NoteEditor = ({ note, onClose }) => {
       setFormData({
         title: note.title || '',
         subject: note.subject || '',
-        content: note.content || ''
+        content: note.content || '',
+        revisionDate: note.revisionDate ? new Date(note.revisionDate).toISOString().split('T')[0] : ''
       });
     }
   }, [note]);
@@ -48,8 +50,18 @@ const NoteEditor = ({ note, onClose }) => {
     try {
       if (note && note.id) {
         await updateNote(note.id, formData);
+        // Log streak event for note edit (meaningful edit detection)
+        const contentLength = formData.content.replace(/<[^>]*>/g, '').length;
+        if (contentLength >= 20) {
+          await logStreakEvent('note', { noteId: note.id, editLength: contentLength });
+        }
       } else {
         await addNote(formData);
+        // Log streak event for new note creation
+        const contentLength = formData.content.replace(/<[^>]*>/g, '').length;
+        if (contentLength >= 20) {
+          await logStreakEvent('note', { editLength: contentLength });
+        }
       }
       onClose();
     } catch (error) {
@@ -69,10 +81,10 @@ const NoteEditor = ({ note, onClose }) => {
     setLoading(true);
     setShowSummary(false);
     try {
-      const response = await fetch('http://localhost:5000/api/note-summary', {
+      const response = await fetch('http://localhost:5000/api/notes/note-summary', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: formData.content }),
+        body: JSON.stringify({ content: formData.content }),
       });
       if (!response.ok) throw new Error('Summary generation failed');
       const data = await response.json();
@@ -117,8 +129,8 @@ const NoteEditor = ({ note, onClose }) => {
         .dark .ql-toolbar .ql-picker-options { background-color: #374151 !important; color: #ffffff !important; }
       `}</style>
 
-      {/* Modal container: fixed height + flex column (NO overflow-hidden) */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-4xl h-[90vh] flex flex-col">
+      {/* Modal container: max height + scrollable */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
             {note && note.id ? 'Edit Note' : 'Create New Note'}
@@ -168,6 +180,20 @@ const NoteEditor = ({ note, onClose }) => {
                 ))}
               </select>
               {errors.subject && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.subject}</p>}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Revision Date
+              </label>
+              <input
+                type="date"
+                value={formData.revisionDate}
+                onChange={(e) => handleChange('revisionDate', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                placeholder="Select revision date..."
+              />
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Optional: Set a date to be reminded for revision</p>
             </div>
 
             <div>

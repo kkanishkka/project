@@ -6,7 +6,14 @@ const userSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-    passwordHash: { type: String, required: true }
+    passwordHash: { type: String, required: true },
+    // Study streak fields
+    currentStreak: { type: Number, default: 0 },
+    longestStreak: { type: Number, default: 0 },
+    lastActiveDate: { type: Date }, // Date in user's timezone
+    timezone: { type: String, default: 'UTC' },
+    tz_locked_at: { type: Date }, // When timezone was first set
+    freezeTokens: { type: Number, default: 1 } // Monthly reset, 1-2 tokens
   },
   { timestamps: true }
 );

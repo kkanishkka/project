@@ -1,5 +1,7 @@
 // src/contexts/AuthContext.jsx
+// src/contexts/AuthContext.jsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import RevisionModal from '../components/RevisionModal';
 // import { useNavigate } from 'react-router-dom'; // optional if you want to redirect
 
 const AuthContext = createContext();
@@ -14,13 +16,39 @@ export const AuthProvider = ({ children }) => {
   // const navigate = useNavigate(); // optional
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showRevisionModal, setShowRevisionModal] = useState(false);
+  const [dueNotes, setDueNotes] = useState([]);
 
   useEffect(() => {
     const token = localStorage.getItem('thinkstash_token');
     const storedUser = localStorage.getItem('thinkstash_user');
-    if (token && storedUser) setUser(JSON.parse(storedUser));
+    if (token && storedUser) {
+      setUser(JSON.parse(storedUser));
+      checkForDueRevisions(token);
+    }
     setLoading(false);
   }, []);
+
+  const checkForDueRevisions = async (token) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/notes`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const notes = await response.json();
+        const today = new Date().toISOString().split('T')[0];
+        const dueNotes = notes.filter(note =>
+          note.revisionDate && note.revisionDate.split('T')[0] <= today
+        );
+        if (dueNotes.length > 0) {
+          setDueNotes(dueNotes);
+          setShowRevisionModal(true);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking for due revisions:', error);
+    }
+  };
 
   const login = async (email, password) => {
     const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/login`, {
@@ -34,6 +62,9 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('thinkstash_token', data.token);
     localStorage.setItem('thinkstash_user', JSON.stringify(data.user));
     setUser(data.user);
+
+    // Check for due revisions after login
+    await checkForDueRevisions(data.token);
 
     // 🔔 notify data layer that auth changed (so it can refetch notes)
     window.dispatchEvent(new Event('thinkstash-auth-changed'));
@@ -72,6 +103,12 @@ export const AuthProvider = ({ children }) => {
   return (
     <AuthContext.Provider value={{ user, login, signup, logout, loading }}>
       {children}
+      {showRevisionModal && (
+        <RevisionModal
+          notes={dueNotes}
+          onClose={() => setShowRevisionModal(false)}
+        />
+      )}
     </AuthContext.Provider>
   );
 };

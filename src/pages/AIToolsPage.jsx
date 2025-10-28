@@ -1,6 +1,7 @@
 import Summarizer from "../components/Summarizer";
 import React, { useState } from 'react';
 import { useData } from '../contexts/DataContext';
+import { useEffect } from 'react';
 import AIExplanationModal from '../components/AIExplanationModal';
 import { 
   Brain, 
@@ -14,7 +15,7 @@ import {
 } from 'lucide-react';
 
 const AIToolsPage = () => {
-  const { notes, generateAISummary } = useData();
+  const { notes, generateAISummary, logStreakEvent } = useData();
   const [selectedNote, setSelectedNote] = useState(null);
   const [showExplanation, setShowExplanation] = useState(false);
   const [activeTab, setActiveTab] = useState('summaries');
@@ -210,7 +211,7 @@ const AIToolsPage = () => {
                           </button>
                         </div>
                         <p className="text-sm text-gray-600 dark:text-gray-300">
-                          {generateAISummary(note.content)}
+                          {/* Summary will be displayed here */}
                         </p>
                       </div>
                     ))}
@@ -253,7 +254,13 @@ const AIToolsPage = () => {
                                 {flashcards.length} flashcards generated
                               </span>
                             </div>
-                            <button className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-sm font-medium transition-colors">
+                            <button
+                              onClick={async () => {
+                                // Log streak event for flashcard practice
+                                await logStreakEvent('flashcard', { noteId: note._id });
+                              }}
+                              className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
+                            >
                               Practice
                             </button>
                           </div>
@@ -311,7 +318,13 @@ const AIToolsPage = () => {
                                 {quiz.length} questions available
                               </span>
                             </div>
-                            <button className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm font-medium transition-colors">
+                            <button
+                              onClick={async () => {
+                                // Log streak event for quiz completion
+                                await logStreakEvent('quiz', { noteId: note._id });
+                              }}
+                              className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
+                            >
                               Take Quiz
                             </button>
                           </div>
@@ -412,7 +425,13 @@ const AIToolsPage = () => {
                               Interval: 1 day
                             </div>
                           </div>
-                          <button className="ml-4 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm font-medium transition-colors">
+                          <button
+                            onClick={async () => {
+                              // Log streak event for spaced repetition review
+                              await logStreakEvent('review', { noteId: note._id });
+                            }}
+                            className="ml-4 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
+                          >
                             Review
                           </button>
                         </div>

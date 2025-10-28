@@ -1,17 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
-import { 
-  BookOpen, 
-  Plus, 
-  Brain, 
-  Target, 
-  Clock, 
+import {
+  BookOpen,
+  Plus,
+  Brain,
+  Target,
+  Clock,
   TrendingUp,
   Calendar,
   Award,
-  Youtube
+  Youtube,
+  Flame
 } from 'lucide-react';
 
 const YouTubeSummarizerModal = ({ onClose }) => {
@@ -100,12 +101,21 @@ const YouTubeSummarizerModal = ({ onClose }) => {
 
 const Dashboard = () => {
   const { user } = useAuth();
-  const { notes } = useData();
+  const { notes, getStreakData } = useData();
   const [showYouTubeModal, setShowYouTubeModal] = useState(false);
+  const [streakData, setStreakData] = useState({ currentStreak: 0, longestStreak: 0, freezeTokens: 0 });
+
+  useEffect(() => {
+    const fetchStreak = async () => {
+      const data = await getStreakData();
+      setStreakData(data);
+    };
+    fetchStreak();
+  }, [getStreakData]);
 
   const stats = [
     { title: 'Total Notes', value: notes.length, icon: <BookOpen className="h-6 w-6" />, color: 'bg-blue-500', change: '+12%' },
-    { title: 'Study Streak', value: '7 days', icon: <TrendingUp className="h-6 w-6" />, color: 'bg-green-500', change: '+2 days' },
+    { title: 'Study Streak', value: `${streakData.currentStreak} days`, icon: <Flame className="h-6 w-6" />, color: 'bg-orange-500', change: streakData.currentStreak > 0 ? '🔥' : 'Start today!' },
     { title: 'Reviews Due', value: Math.floor(notes.length * 0.3), icon: <Clock className="h-6 w-6" />, color: 'bg-orange-500', change: 'Today' },
     { title: 'Mastery Score', value: '82%', icon: <Award className="h-6 w-6" />, color: 'bg-purple-500', change: '+5%' }
   ];
@@ -113,8 +123,8 @@ const Dashboard = () => {
   const recentNotes = notes.slice(-3).reverse();
 
   const upcomingReviews = notes
-    .filter(note => note.nextReview)
-    .sort((a, b) => new Date(a.nextReview) - new Date(b.nextReview))
+    .filter(note => note.revisionDate)
+    .sort((a, b) => new Date(a.revisionDate) - new Date(b.revisionDate))
     .slice(0, 5);
 
   const formatDate = (dateString) => {
@@ -258,7 +268,7 @@ const Dashboard = () => {
                       <p className="text-xs text-gray-500 dark:text-gray-400">{note.subject}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-xs font-medium text-gray-900 dark:text-white">{formatDate(note.nextReview)}</p>
+                      <p className="text-xs font-medium text-gray-900 dark:text-white">{formatDate(note.revisionDate)}</p>
                     </div>
                   </div>
                 ))}

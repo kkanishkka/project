@@ -6,6 +6,7 @@ import morgan from "morgan";
 import authRoutes from "./routes/auth.routes.js";
 import noteRoutes from "./routes/notes.routes.js";
 import aiRoutes from "./routes/ai.routes.js";
+import streakRoutes from "./routes/streak.routes.js";
 import { notFound, errorHandler } from "./middleware/error.js";
 
 const app = express();
@@ -34,6 +35,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/notes", noteRoutes);
 // (optional) make this explicit: app.use("/api/ai", aiRoutes);
 app.use("/api", aiRoutes);
+app.use("/api/streak", streakRoutes);
 
 // 404 + error handler (must be last)
 app.use(notFound);

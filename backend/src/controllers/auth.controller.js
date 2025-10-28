@@ -7,7 +7,7 @@ const signToken = (user) =>
 
 export const register = async (req, res, next) => {
   try {
-    const { name, email, password } = req.body || {};
+    const { name, email, password, timezone } = req.body || {};
     if (!name || !email || !password) {
       return res.status(400).json({ error: "Name, email, and password are required" });
     }
@@ -17,7 +17,13 @@ export const register = async (req, res, next) => {
 
     // IMPORTANT: your model needs passwordHash, not password
     const passwordHash = await bcrypt.hash(password, 10);
-    const user = await User.create({ name, email, passwordHash });
+    const user = await User.create({
+      name,
+      email,
+      passwordHash,
+      timezone: timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+      tz_locked_at: new Date() // Lock timezone on registration
+    });
 
     const token = signToken(user);
     return res.status(201).json({

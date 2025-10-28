@@ -26,7 +26,7 @@ const NoteCard = ({ note, viewMode, onEdit }) => {
 
   const handleDelete = () => {
     if (window.confirm('Are you sure you want to delete this note?')) {
-      deleteNote(note.id);
+      deleteNote(note._id);
     }
     setShowMenu(false);
   };
@@ -68,7 +68,7 @@ const NoteCard = ({ note, viewMode, onEdit }) => {
 
   return (
     <div
-      className="bg-white dark:bg-gray-8 00 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden hover:shadow-lg transition-all duration-200 transform hover:-translate-y-1 cursor-pointer"
+      className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-visible hover:shadow-lg transition-all duration-200 transform hover:-translate-y-1 cursor-pointer relative"
       onClick={handleCardClick}
     >
       <div className="p-6">
@@ -146,7 +146,7 @@ const NoteCard = ({ note, viewMode, onEdit }) => {
           </div>
           <div className="flex items-center space-x-1">
             <Clock className="h-3 w-3" />
-            <span>{formatNextReview(note.nextReview)}</span>
+            <span>{formatNextReview(note.revisionDate)}</span>
           </div>
         </div>
       </div>

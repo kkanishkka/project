@@ -114,6 +114,39 @@ export const DataProvider = ({ children }) => {
     return 'Failed to generate summary';
   };
 
+  // Streak functions
+  const logStreakEvent = async (type, metadata = {}) => {
+    try {
+      const res = await fetch(`${API}/api/streak/events`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ type, metadata }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data;
+      }
+    } catch (err) {
+      console.error('Failed to log streak event:', err);
+    }
+    return null;
+  };
+
+  const getStreakData = async () => {
+    try {
+      const res = await fetch(`${API}/api/streak/streak`, {
+        headers: getAuthHeaders(),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data;
+      }
+    } catch (err) {
+      console.error('Failed to get streak data:', err);
+    }
+    return { currentStreak: 0, longestStreak: 0, freezeTokens: 0 };
+  };
+
   // used by Navbar before logout()
   const resetData = useCallback(() => {
     setNotes([]);
@@ -132,6 +165,8 @@ export const DataProvider = ({ children }) => {
       generateAISummary,
       fetchNotes,
       resetData,
+      logStreakEvent,
+      getStreakData,
     }}>
       {children}
     </DataContext.Provider>
