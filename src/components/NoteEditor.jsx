@@ -26,7 +26,7 @@ const NoteEditor = ({ note, onClose }) => {
     if (note) {
       setFormData({
         title: note.title || '',
-        subject: note.subject || '',
+        subject: note.subject || (Array.isArray(note.tags) ? (note.tags[0] || '') : ''),
         content: note.content || '',
         revisionDate: note.revisionDate ? new Date(note.revisionDate).toISOString().split('T')[0] : ''
       });
@@ -48,12 +48,12 @@ const NoteEditor = ({ note, onClose }) => {
 
     setLoading(true);
     try {
-      if (note && note.id) {
-        await updateNote(note.id, formData);
+      if (note && note._id) {
+        await updateNote(note._id, formData);
         // Log streak event for note edit (meaningful edit detection)
         const contentLength = formData.content.replace(/<[^>]*>/g, '').length;
         if (contentLength >= 20) {
-          await logStreakEvent('note', { noteId: note.id, editLength: contentLength });
+          await logStreakEvent('note', { noteId: note._id, editLength: contentLength });
         }
       } else {
         await addNote(formData);
@@ -81,9 +81,20 @@ const NoteEditor = ({ note, onClose }) => {
     setLoading(true);
     setShowSummary(false);
     try {
+      const token = localStorage.getItem('thinkstash_token');
+      if (!token) {
+        setAiSummary('Authentication required. Please log in.');
+        setShowSummary(true);
+        setLoading(false);
+        return;
+      }
+
       const response = await fetch('http://localhost:5000/api/notes/note-summary', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ content: formData.content }),
       });
       if (!response.ok) throw new Error('Summary generation failed');
@@ -133,7 +144,7 @@ const NoteEditor = ({ note, onClose }) => {
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-            {note && note.id ? 'Edit Note' : 'Create New Note'}
+            {note && note._id ? 'Edit Note' : 'Create New Note'}
           </h2>
           <button
             onClick={onClose}

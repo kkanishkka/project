@@ -257,7 +257,7 @@ const AIToolsPage = () => {
                             <button
                               onClick={async () => {
                                 // Log streak event for flashcard practice
-                                await logStreakEvent('flashcard', { noteId: note._id });
+                                await logStreakEvent('review', { noteId: note.id });
                               }}
                               className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
                             >
@@ -321,7 +321,7 @@ const AIToolsPage = () => {
                             <button
                               onClick={async () => {
                                 // Log streak event for quiz completion
-                                await logStreakEvent('quiz', { noteId: note._id });
+                                await logStreakEvent('quiz', { noteId: note.id });
                               }}
                               className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
                             >
@@ -428,7 +428,7 @@ const AIToolsPage = () => {
                           <button
                             onClick={async () => {
                               // Log streak event for spaced repetition review
-                              await logStreakEvent('review', { noteId: note._id });
+                              await logStreakEvent('review', { noteId: note.id });
                             }}
                             className="ml-4 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
                           >

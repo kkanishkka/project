@@ -1,19 +1,29 @@
 // src/components/Summarizer.jsx
 import React, { useState } from "react";
+import { useData } from "../contexts/DataContext";
 
 export default function Summarizer() {
   const [input, setInput] = useState("");
   const [summary, setSummary] = useState("");
   const [loading, setLoading] = useState(false);
+  const { logStreakEvent } = useData();
 
   const handleSummarize = async () => {
     setLoading(true);
     setSummary("");
     try {
+      const token = localStorage.getItem('thinkstash_token');
+      if (!token) {
+        setSummary("❌ Authentication required. Please log in.");
+        setLoading(false);
+        return;
+      }
+
       const response = await fetch("http://localhost:5000/api/summarize", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
         },
         body: JSON.stringify({ content: input }),
       });
@@ -24,6 +34,11 @@ export default function Summarizer() {
 
       const result = await response.json();
       setSummary(result.summary || "Could not generate summary");
+
+      // Log streak event for AI summarization
+      if (result.summary) {
+        await logStreakEvent('ai_session', { contentLength: input.length });
+      }
     } catch (err) {
       setSummary("❌ " + err.message);
     }

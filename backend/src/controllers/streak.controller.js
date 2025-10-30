@@ -4,7 +4,7 @@ import User from "../models/User.js";
 import StreakEvent from "../models/StreakEvent.js";
 
 const logEventSchema = z.object({
-  type: z.enum(['note', 'review', 'quiz', 'ai_session', 'revision']),
+  type: z.enum(['note', 'review', 'quiz', 'ai_session', 'revision', 'freeze']),
   occurredAt: z.string().optional(), // ISO date string, for backfill
   metadata: z.object({
     noteId: z.string().optional(),
@@ -66,6 +66,7 @@ function qualifiesForStreak(event) {
       return event.metadata?.quizQuestions >= 1;
     case 'ai_session':
     case 'revision':
+    case 'freeze':
       return true; // Always count
     default:
       return false;
@@ -193,13 +194,22 @@ export const useFreezeToken = async (req, res, next) => {
       return res.status(400).json({ error: "No freeze tokens available" });
     }
 
-    // Reset streak to 0 (but keep longest)
-    await User.findByIdAndUpdate(userId, {
-      currentStreak: 0,
-      freezeTokens: user.freezeTokens - 1
+    // Record a 'freeze' event for today so streak is preserved
+    await StreakEvent.create({
+      user: userId,
+      type: 'freeze',
+      occurredAt: new Date(),
+      metadata: {}
     });
 
-    res.json({ message: "Freeze token used", freezeTokens: user.freezeTokens - 1 });
+    // Decrement freeze token
+    await User.findByIdAndUpdate(userId, { freezeTokens: user.freezeTokens - 1 });
+
+    // Recalculate streak with the freeze event counting for today
+    const { currentStreak, longestStreak } = await calculateStreak(userId);
+    await User.findByIdAndUpdate(userId, { currentStreak, longestStreak, lastActiveDate: getUserLocalDate(user.timezone) });
+
+    res.json({ message: "Freeze token used", freezeTokens: user.freezeTokens - 1, currentStreak, longestStreak });
   } catch (e) { next(e); }
 };
 
