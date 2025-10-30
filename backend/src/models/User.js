@@ -5,7 +5,7 @@ import bcrypt from "bcryptjs";
 const userSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
-    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    email: { type: String, required: true, unique: true, lowercase: true, trim: true, match: [/^\S+@\S+\.\S+$/, 'Invalid email'] },
     passwordHash: { type: String, required: true },
     // Study streak fields
     currentStreak: { type: Number, default: 0 },
@@ -18,12 +18,18 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Unique index is already ensured via the schema field's `unique: true`
+
 // Virtual: allow setting 'password' even though we store 'passwordHash'
 userSchema.virtual('password')
   .set(function (plain) { this._password = plain; });
 
 userSchema.pre('save', async function (next) {
   try {
+    // Normalize email just in case
+    if (this.isModified('email') && typeof this.email === 'string') {
+      this.email = this.email.toLowerCase();
+    }
     if (this.isModified('passwordHash')) return next();
     if (this._password) {
       const salt = await bcrypt.genSalt(10);

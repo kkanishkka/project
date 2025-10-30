@@ -11,15 +11,19 @@ export const register = async (req, res, next) => {
     if (!name || !email || !password) {
       return res.status(400).json({ error: "Name, email, and password are required" });
     }
+    const normalizedEmail = String(email).toLowerCase().trim();
+    const emailOk = /^\S+@\S+\.\S+$/.test(normalizedEmail);
+    if (!emailOk) return res.status(400).json({ error: "Email is invalid" });
+    if (String(password).length < 6) return res.status(400).json({ error: "Password must be at least 6 characters" });
 
-    const exists = await User.findOne({ email });
+    const exists = await User.findOne({ email: normalizedEmail });
     if (exists) return res.status(409).json({ error: "Email already registered" });
 
     // IMPORTANT: your model needs passwordHash, not password
     const passwordHash = await bcrypt.hash(password, 10);
     const user = await User.create({
       name,
-      email,
+      email: normalizedEmail,
       passwordHash,
       timezone: timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
       tz_locked_at: new Date() // Lock timezone on registration
@@ -43,13 +47,21 @@ export const login = async (req, res, next) => {
     if (!email || !password) {
       return res.status(400).json({ error: "Email and password are required" });
     }
+    const normalizedEmail = String(email).toLowerCase().trim();
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: normalizedEmail });
     if (!user) return res.status(401).json({ error: "Invalid email or password" });
 
     // Uses your schema method
     const ok = await user.comparePassword(password);
     if (!ok) return res.status(401).json({ error: "Invalid email or password" });
+
+    // Set timezone if not locked (like registration)
+    if (!user.tz_locked_at) {
+      user.timezone = req.body.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+      user.tz_locked_at = new Date();
+      await user.save();
+    }
 
     const token = signToken(user);
     return res.json({
@@ -61,8 +73,15 @@ export const login = async (req, res, next) => {
   }
 };
 
-export const me = async (req, res) => {
-  res.json({ user: { id: req.user.id, email: req.user.email } });
+export const me = async (req, res, next) => {
+  try {
+    // Prefer fetching fresh user data to ensure name/email are accurate
+    const user = await User.findById(req.user.id).select("_id name email");
+    if (!user) return res.status(404).json({ error: "User not found" });
+    res.json({ user: { id: user._id, name: user.name, email: user.email } });
+  } catch (err) {
+    next(err);
+  }
 };
 
 export const logout = (_req, res) => {

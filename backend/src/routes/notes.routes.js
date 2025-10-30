@@ -1,7 +1,7 @@
 // routes/notes.routes.js
 import { Router } from "express";
 import { requireAuth } from "../middleware/auth.js";
-import { createNote, listNotes, getNote, updateNote, deleteNote, generateSummary, generateAISummary } from "../controllers/notes.controller.js";
+import { createNote, listNotes, getNote, updateNote, deleteNote, generateSummary, countNotes } from "../controllers/notes.controller.js";
 
 const router = Router();
 
@@ -10,6 +10,7 @@ router.use(requireAuth);
 
 router.post("/", createNote);
 router.get("/", listNotes);
+router.get("/count", countNotes);
 router.get("/:id", getNote);
 router.put("/:id", updateNote);
 router.delete("/:id", deleteNote);

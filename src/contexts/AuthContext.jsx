@@ -18,20 +18,50 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [showRevisionModal, setShowRevisionModal] = useState(false);
   const [dueNotes, setDueNotes] = useState([]);
+  const API = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
   useEffect(() => {
     const token = localStorage.getItem('thinkstash_token');
     const storedUser = localStorage.getItem('thinkstash_user');
-    if (token && storedUser) {
-      setUser(JSON.parse(storedUser));
-      checkForDueRevisions(token);
-    }
-    setLoading(false);
+    const bootstrap = async () => {
+      try {
+        if (token) {
+          if (storedUser) {
+            setUser(JSON.parse(storedUser));
+          } else {
+            // Recover user from server if not in localStorage
+            const res = await fetch(`${API}/api/auth/me`, {
+              headers: { 'Authorization': `Bearer ${token}` },
+            });
+            if (res.ok) {
+              const data = await res.json();
+              if (data?.user) {
+                setUser(data.user);
+                localStorage.setItem('thinkstash_user', JSON.stringify(data.user));
+              }
+            } else {
+              // If token is invalid, clear it
+              localStorage.removeItem('thinkstash_token');
+              localStorage.removeItem('thinkstash_user');
+            }
+          }
+          await checkForDueRevisions(token);
+        }
+      } catch (e) {
+        console.error('Auth bootstrap error:', e);
+        // Clear invalid tokens on error
+        localStorage.removeItem('thinkstash_token');
+        localStorage.removeItem('thinkstash_user');
+      } finally {
+        setLoading(false);
+      }
+    };
+    bootstrap();
   }, []);
 
   const checkForDueRevisions = async (token) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/notes`, {
+      const response = await fetch(`${API}/api/notes`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       if (response.ok) {
@@ -51,7 +81,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const login = async (email, password) => {
-    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/login`, {
+    const response = await fetch(`${API}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
@@ -72,7 +102,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const signup = async (name, email, password) => {
-    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/register`, {
+    const response = await fetch(`${API}/api/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, email, password }),

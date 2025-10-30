@@ -1,9 +1,11 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { DataProvider } from './contexts/DataContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import ErrorBoundary from './components/ErrorBoundary';
+import HomeRedirect from './components/HomeRedirect';
 import Navbar from './components/Navbar';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
@@ -19,10 +21,11 @@ function App() {
       <AuthProvider>
         <DataProvider>
           <Router>
+            <ErrorBoundary>
             <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
               <Navbar />
               <Routes>
-                <Route path="/" element={<LandingPage />} />
+                <Route path="/" element={<HomeRedirect />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/signup" element={<SignupPage />} />
                 <Route
@@ -52,8 +55,10 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
+                <Route path="*" element={<LandingPage />} />
               </Routes>
             </div>
+            </ErrorBoundary>
           </Router>
         </DataProvider>
       </AuthProvider>

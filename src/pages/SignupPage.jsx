@@ -81,9 +81,9 @@ const SignupPage = () => {
   const getPasswordStrength = (password) => {
     if (password.length === 0) return '';
     if (password.length < 6) return 'weak';
-    if (password.length < 8) return 'medium';
-    if (password.length >= 8 && /(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) return 'strong';
-    return 'medium';
+    if (password.length < 8) return 'fair';
+    if (password.length < 12) return 'good';
+    return 'strong';
   };
 
   const passwordStrength = getPasswordStrength(formData.password);
@@ -192,12 +192,18 @@ const SignupPage = () => {
                     <div className="flex space-x-1">
                       <div className={`flex-1 h-2 rounded ${
                         passwordStrength === 'weak' ? 'bg-red-300' :
-                        passwordStrength === 'medium' ? 'bg-yellow-300' :
+                        passwordStrength === 'fair' ? 'bg-yellow-300' :
+                        passwordStrength === 'good' ? 'bg-blue-300' :
                         passwordStrength === 'strong' ? 'bg-green-300' : 'bg-gray-200'
                       }`}></div>
                       <div className={`flex-1 h-2 rounded ${
-                        passwordStrength === 'medium' || passwordStrength === 'strong' ? 
-                        passwordStrength === 'medium' ? 'bg-yellow-300' : 'bg-green-300' : 'bg-gray-200'
+                        passwordStrength === 'fair' || passwordStrength === 'good' || passwordStrength === 'strong' ?
+                        passwordStrength === 'fair' ? 'bg-yellow-300' :
+                        passwordStrength === 'good' ? 'bg-blue-300' : 'bg-green-300' : 'bg-gray-200'
+                      }`}></div>
+                      <div className={`flex-1 h-2 rounded ${
+                        passwordStrength === 'good' || passwordStrength === 'strong' ?
+                        passwordStrength === 'good' ? 'bg-blue-300' : 'bg-green-300' : 'bg-gray-200'
                       }`}></div>
                       <div className={`flex-1 h-2 rounded ${
                         passwordStrength === 'strong' ? 'bg-green-300' : 'bg-gray-200'
@@ -205,7 +211,8 @@ const SignupPage = () => {
                     </div>
                     <p className={`text-xs mt-1 ${
                       passwordStrength === 'weak' ? 'text-red-600 dark:text-red-400' :
-                      passwordStrength === 'medium' ? 'text-yellow-600 dark:text-yellow-400' :
+                      passwordStrength === 'fair' ? 'text-yellow-600 dark:text-yellow-400' :
+                      passwordStrength === 'good' ? 'text-blue-600 dark:text-blue-400' :
                       passwordStrength === 'strong' ? 'text-green-600 dark:text-green-400' : ''
                     }`}>
                       Password strength: {passwordStrength}

@@ -30,10 +30,20 @@ const YouTubeSummarizerModal = ({ onClose }) => {
     setError('');
     setSummary('');
     try {
+      const token = localStorage.getItem('thinkstash_token');
+      if (!token) {
+        setError('Authentication required. Please log in.');
+        setLoading(false);
+        return;
+      }
+
       const res = await fetch(`${API}/api/youtube-summary`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url }),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ youtubeUrl: url }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to summarize');
@@ -101,20 +111,29 @@ const YouTubeSummarizerModal = ({ onClose }) => {
 
 const Dashboard = () => {
   const { user } = useAuth();
-  const { notes, getStreakData } = useData();
+  const { notes, notesCount, getStreakData, useFreezeToken } = useData();
   const [showYouTubeModal, setShowYouTubeModal] = useState(false);
   const [streakData, setStreakData] = useState({ currentStreak: 0, longestStreak: 0, freezeTokens: 0 });
+  const [streakMessage, setStreakMessage] = useState('');
 
   useEffect(() => {
     const fetchStreak = async () => {
       const data = await getStreakData();
       setStreakData(data);
+
+      // Set streak milestone message
+      if (data.currentStreak > 0) {
+        if (data.currentStreak === 7) setStreakMessage('🎉 Week streak! Keep it up!');
+        else if (data.currentStreak === 30) setStreakMessage('🏆 Month streak! Amazing dedication!');
+        else if (data.currentStreak === 100) setStreakMessage('🌟 Century streak! Legendary!');
+        else if (data.currentStreak % 10 === 0) setStreakMessage(`🔥 ${data.currentStreak} days! You're on fire!`);
+      }
     };
     fetchStreak();
   }, [getStreakData]);
 
   const stats = [
-    { title: 'Total Notes', value: notes.length, icon: <BookOpen className="h-6 w-6" />, color: 'bg-blue-500', change: '+12%' },
+    { title: 'Total Notes', value: notesCount ?? notes.length, icon: <BookOpen className="h-6 w-6" />, color: 'bg-blue-500', change: '+12%' },
     { title: 'Study Streak', value: `${streakData.currentStreak} days`, icon: <Flame className="h-6 w-6" />, color: 'bg-orange-500', change: streakData.currentStreak > 0 ? '🔥' : 'Start today!' },
     { title: 'Reviews Due', value: Math.floor(notes.length * 0.3), icon: <Clock className="h-6 w-6" />, color: 'bg-orange-500', change: 'Today' },
     { title: 'Mastery Score', value: '82%', icon: <Award className="h-6 w-6" />, color: 'bg-purple-500', change: '+5%' }
@@ -148,6 +167,31 @@ const Dashboard = () => {
           <p className="text-gray-600 dark:text-gray-300 mt-2">
             Ready to continue your learning journey? Here's your progress overview.
           </p>
+          {streakMessage && (
+            <div className="mt-4 p-4 bg-gradient-to-r from-orange-100 to-red-100 dark:from-orange-900 dark:to-red-900 rounded-lg border border-orange-200 dark:border-orange-700">
+              <p className="text-orange-800 dark:text-orange-200 font-medium">{streakMessage}</p>
+            </div>
+          )}
+          {streakData.freezeTokens > 0 && (
+            <div className="mt-4 flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-900 rounded-lg border border-blue-200 dark:border-blue-700">
+              <div>
+                <p className="text-blue-800 dark:text-blue-200 font-medium">Freeze Tokens Available: {streakData.freezeTokens}</p>
+                <p className="text-blue-600 dark:text-blue-300 text-sm">Use to preserve your streak if you miss a day</p>
+              </div>
+              <button
+                onClick={async () => {
+                  const result = await useFreezeToken();
+                  if (result) {
+                    setStreakData(prev => ({ ...prev, freezeTokens: prev.freezeTokens - 1 }));
+                    alert('Freeze token used! Your streak is preserved.');
+                  }
+                }}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+              >
+                Use Freeze Token
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -228,7 +272,7 @@ const Dashboard = () => {
             {recentNotes.length > 0 ? (
               <div className="space-y-3">
                 {recentNotes.map((note) => (
-                  <div key={note.id} className="border dark:border-gray-700 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                  <div key={note._id || note.id} className="border dark:border-gray-700 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                     <div className="flex items-start justify-between mb-2">
                       <h3 className="font-medium text-gray-900 dark:text-white truncate">{note.title}</h3>
                       <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap ml-2">{new Date(note.createdAt).toLocaleDateString()}</span>
@@ -236,11 +280,13 @@ const Dashboard = () => {
                     <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">
                       {note.content.replace(/<[^>]*>/g, '').substring(0, 100)}...
                     </p>
-                    <div className="flex items-center mt-2">
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                        {note.subject}
-                      </span>
-                    </div>
+                    {Array.isArray(note.tags) && note.tags.length > 0 && (
+                      <div className="flex items-center mt-2">
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                          {note.tags[0]}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -262,10 +308,12 @@ const Dashboard = () => {
             {upcomingReviews.length > 0 ? (
               <div className="space-y-3">
                 {upcomingReviews.map((note) => (
-                  <div key={note.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <div key={note._id || note.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{note.title}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">{note.subject}</p>
+                      {Array.isArray(note.tags) && note.tags.length > 0 && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{note.tags[0]}</p>
+                      )}
                     </div>
                     <div className="text-right">
                       <p className="text-xs font-medium text-gray-900 dark:text-white">{formatDate(note.revisionDate)}</p>

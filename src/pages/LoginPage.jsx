@@ -40,7 +40,7 @@ const LoginPage = () => {
     setLoading(true);
     try {
       await login(formData.email, formData.password);
-      navigate('/dashboard');
+      navigate('/home');
     } catch (error) {
       setErrors({ general: 'Login failed. Please try again.' });
     } finally {

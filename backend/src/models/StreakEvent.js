@@ -7,7 +7,7 @@ const streakEventSchema = new mongoose.Schema(
     type: {
       type: String,
       required: true,
-      enum: ['note', 'review', 'quiz', 'ai_session', 'revision']
+      enum: ['note', 'review', 'quiz', 'ai_session', 'revision', 'freeze']
     },
     occurredAt: { type: Date, required: true, default: Date.now },
     metadata: {
