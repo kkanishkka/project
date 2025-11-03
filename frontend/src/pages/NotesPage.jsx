@@ -150,7 +150,7 @@ const NotesPage = () => {
             }
           >
             {filteredNotes.map((note) => (
-              <div key={note.id} className="space-y-2">
+              <div key={note._id} className="space-y-2">
                 <NoteCard
                   note={note}
                   viewMode={viewMode}

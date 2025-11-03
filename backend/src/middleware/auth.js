@@ -7,8 +7,8 @@ export const requireAuth = (req, res, next) => {
 
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
-    // standardize to req.user.id
-    req.user = { id: payload.id || payload._id };
+    // standardize to req.user with id and email when available
+    req.user = { id: payload.id || payload._id, email: payload.email };
     next();
   } catch (e) {
     return res.status(401).json({ message: "Invalid/expired token" });

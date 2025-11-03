@@ -4,6 +4,7 @@ import mongoose from "mongoose";
 const noteSchema = new mongoose.Schema(
   {
     title: { type: String, required: true },
+    subject: { type: String, required: true },
     content: { type: String },
     tags: [String],
     revisionDate: { type: Date }, // Date when the note should be revised

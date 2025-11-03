@@ -44,11 +44,31 @@ export const DataProvider = ({ children }) => {
 
   useEffect(() => {
     fetchNotes();
+    
+    // Listen for storage events (cross-tab)
     const onStorage = (e) => {
       if (e.key === 'thinkstash_token') fetchNotes();
     };
     window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
+    
+    // Listen for auth changes (same tab) - dispatched by AuthContext
+    const onAuthChanged = () => {
+      fetchNotes();
+    };
+    window.addEventListener('thinkstash-auth-changed', onAuthChanged);
+    
+    // Listen for logout events
+    const onLogout = () => {
+      setNotes([]);
+      setFlashcards([]);
+    };
+    window.addEventListener('thinkstash-logout', onLogout);
+    
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener('thinkstash-auth-changed', onAuthChanged);
+      window.removeEventListener('thinkstash-logout', onLogout);
+    };
   }, []);
 
   const addNote = async (note) => {
@@ -60,10 +80,17 @@ export const DataProvider = ({ children }) => {
       });
       if (res.ok) {
         const newNote = await res.json();
-        setNotes(prev => [newNote, ...prev]);
+        // Refetch notes to ensure we have the complete, server-filtered list
+        await fetchNotes();
+        return { success: true, note: newNote };
+      } else {
+        const error = await res.json().catch(() => ({ error: 'Failed to save note' }));
+        console.error('Failed to add note:', error);
+        return { success: false, error: error.error || 'Failed to save note' };
       }
     } catch (err) {
       console.error('Failed to add note:', err);
+      return { success: false, error: err.message || 'Network error occurred' };
     }
   };
 
@@ -76,10 +103,17 @@ export const DataProvider = ({ children }) => {
       });
       if (res.ok) {
         const updated = await res.json();
-        setNotes(prev => prev.map(n => n._id === id ? updated : n));
+        // Refetch to ensure we have the latest data from server
+        await fetchNotes();
+        return { success: true, note: updated };
+      } else {
+        const error = await res.json().catch(() => ({ error: 'Failed to update note' }));
+        console.error('Failed to update note:', error);
+        return { success: false, error: error.error || 'Failed to update note' };
       }
     } catch (err) {
       console.error('Failed to update note:', err);
+      return { success: false, error: err.message || 'Network error occurred' };
     }
   };
 
@@ -147,6 +181,22 @@ export const DataProvider = ({ children }) => {
     return { currentStreak: 0, longestStreak: 0, freezeTokens: 0 };
   };
 
+  const useFreezeToken = async () => {
+    try {
+      const res = await fetch(`${API}/api/streak/freeze`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data;
+      }
+    } catch (err) {
+      console.error('Failed to use freeze token:', err);
+    }
+    return null;
+  };
+
   // used by Navbar before logout()
   const resetData = useCallback(() => {
     setNotes([]);
@@ -167,6 +217,7 @@ export const DataProvider = ({ children }) => {
       resetData,
       logStreakEvent,
       getStreakData,
+      useFreezeToken,
     }}>
       {children}
     </DataContext.Provider>

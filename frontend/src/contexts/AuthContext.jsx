@@ -23,7 +23,20 @@ export const AuthProvider = ({ children }) => {
     const token = localStorage.getItem('thinkstash_token');
     const storedUser = localStorage.getItem('thinkstash_user');
     if (token && storedUser) {
-      setUser(JSON.parse(storedUser));
+      try {
+        const parsed = JSON.parse(storedUser);
+        // Ensure parsed is an object we can use
+        if (parsed && typeof parsed === 'object') {
+          setUser(parsed);
+        } else {
+          // Stored value is malformed; clean it up
+          localStorage.removeItem('thinkstash_user');
+        }
+      } catch (e) {
+        // Invalid JSON in localStorage can happen if something wrote "undefined" or partial data
+        console.error('Invalid thinkstash_user in localStorage, clearing it:', e);
+        localStorage.removeItem('thinkstash_user');
+      }
       checkForDueRevisions(token);
     }
     setLoading(false);

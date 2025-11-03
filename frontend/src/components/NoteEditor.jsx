@@ -30,6 +30,13 @@ const NoteEditor = ({ note, onClose }) => {
         content: note.content || '',
         revisionDate: note.revisionDate ? new Date(note.revisionDate).toISOString().split('T')[0] : ''
       });
+    } else {
+      setFormData({
+        title: '',
+        subject: '',
+        content: '',
+        revisionDate: ''
+      });
     }
   }, [note]);
 
@@ -48,24 +55,35 @@ const NoteEditor = ({ note, onClose }) => {
 
     setLoading(true);
     try {
-      if (note && note.id) {
-        await updateNote(note.id, formData);
-        // Log streak event for note edit (meaningful edit detection)
-        const contentLength = formData.content.replace(/<[^>]*>/g, '').length;
-        if (contentLength >= 20) {
-          await logStreakEvent('note', { noteId: note.id, editLength: contentLength });
+      let result;
+      if (note && note._id) {
+        result = await updateNote(note._id, formData);
+        if (result.success) {
+          // Log streak event for note edit (meaningful edit detection)
+          const contentLength = formData.content.replace(/<[^>]*>/g, '').length;
+          if (contentLength >= 20) {
+            await logStreakEvent('note', { noteId: note._id, editLength: contentLength });
+          }
+          onClose();
+        } else {
+          setErrors({ general: result.error || 'Failed to update note. Please try again.' });
         }
       } else {
-        await addNote(formData);
-        // Log streak event for new note creation
-        const contentLength = formData.content.replace(/<[^>]*>/g, '').length;
-        if (contentLength >= 20) {
-          await logStreakEvent('note', { editLength: contentLength });
+        result = await addNote(formData);
+        if (result.success) {
+          // Log streak event for new note creation
+          const contentLength = formData.content.replace(/<[^>]*>/g, '').length;
+          if (contentLength >= 20) {
+            await logStreakEvent('note', { editLength: contentLength });
+          }
+          onClose();
+        } else {
+          setErrors({ general: result.error || 'Failed to save note. Please try again.' });
         }
       }
-      onClose();
     } catch (error) {
       console.error('Error saving note:', error);
+      setErrors({ general: 'An unexpected error occurred. Please try again.' });
     } finally {
       setLoading(false);
     }
@@ -81,9 +99,14 @@ const NoteEditor = ({ note, onClose }) => {
     setLoading(true);
     setShowSummary(false);
     try {
-      const response = await fetch('http://localhost:5000/api/notes/note-summary', {
+      const API = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const token = localStorage.getItem('thinkstash_token');
+      const response = await fetch(`${API}/api/notes/note-summary`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` 
+        },
         body: JSON.stringify({ content: formData.content }),
       });
       if (!response.ok) throw new Error('Summary generation failed');
@@ -133,7 +156,7 @@ const NoteEditor = ({ note, onClose }) => {
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-            {note && note.id ? 'Edit Note' : 'Create New Note'}
+            {note && note._id ? 'Edit Note' : 'Create New Note'}
           </h2>
           <button
             onClick={onClose}
@@ -147,6 +170,11 @@ const NoteEditor = ({ note, onClose }) => {
         <form onSubmit={handleSubmit} className="flex flex-col flex-1">
           {/* Scrollable content area */}
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            {errors.general && (
+              <div className="bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg p-4">
+                <p className="text-sm text-red-800 dark:text-red-200">{errors.general}</p>
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Title *

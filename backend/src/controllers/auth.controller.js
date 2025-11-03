@@ -51,6 +51,13 @@ export const login = async (req, res, next) => {
     const ok = await user.comparePassword(password);
     if (!ok) return res.status(401).json({ error: "Invalid email or password" });
 
+    // Set timezone if not locked (like registration)
+    if (!user.tz_locked_at) {
+      user.timezone = req.body.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+      user.tz_locked_at = new Date();
+      await user.save();
+    }
+
     const token = signToken(user);
     return res.json({
       user: { id: user._id, name: user.name, email: user.email },
@@ -61,8 +68,15 @@ export const login = async (req, res, next) => {
   }
 };
 
-export const me = async (req, res) => {
-  res.json({ user: { id: req.user.id, email: req.user.email } });
+export const me = async (req, res, next) => {
+  try {
+    // Prefer fetching fresh user data to ensure name/email are accurate
+    const user = await User.findById(req.user.id).select("_id name email");
+    if (!user) return res.status(404).json({ error: "User not found" });
+    res.json({ user: { id: user._id, name: user.name, email: user.email } });
+  } catch (err) {
+    next(err);
+  }
 };
 
 export const logout = (_req, res) => {

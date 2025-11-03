@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
+import PingData from '../components/PingData';
 import {
   BookOpen,
   Plus,
@@ -101,14 +102,23 @@ const YouTubeSummarizerModal = ({ onClose }) => {
 
 const Dashboard = () => {
   const { user } = useAuth();
-  const { notes, getStreakData } = useData();
+  const { notes, getStreakData, useFreezeToken } = useData();
   const [showYouTubeModal, setShowYouTubeModal] = useState(false);
   const [streakData, setStreakData] = useState({ currentStreak: 0, longestStreak: 0, freezeTokens: 0 });
+  const [streakMessage, setStreakMessage] = useState('');
 
   useEffect(() => {
     const fetchStreak = async () => {
       const data = await getStreakData();
       setStreakData(data);
+
+      // Set streak milestone message
+      if (data.currentStreak > 0) {
+        if (data.currentStreak === 7) setStreakMessage('🎉 Week streak! Keep it up!');
+        else if (data.currentStreak === 30) setStreakMessage('🏆 Month streak! Amazing dedication!');
+        else if (data.currentStreak === 100) setStreakMessage('🌟 Century streak! Legendary!');
+        else if (data.currentStreak % 10 === 0) setStreakMessage(`🔥 ${data.currentStreak} days! You're on fire!`);
+      }
     };
     fetchStreak();
   }, [getStreakData]);
@@ -140,6 +150,7 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
+      <PingData />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
@@ -148,6 +159,31 @@ const Dashboard = () => {
           <p className="text-gray-600 dark:text-gray-300 mt-2">
             Ready to continue your learning journey? Here's your progress overview.
           </p>
+          {streakMessage && (
+            <div className="mt-4 p-4 bg-gradient-to-r from-orange-100 to-red-100 dark:from-orange-900 dark:to-red-900 rounded-lg border border-orange-200 dark:border-orange-700">
+              <p className="text-orange-800 dark:text-orange-200 font-medium">{streakMessage}</p>
+            </div>
+          )}
+          {streakData.freezeTokens > 0 && (
+            <div className="mt-4 flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-900 rounded-lg border border-blue-200 dark:border-blue-700">
+              <div>
+                <p className="text-blue-800 dark:text-blue-200 font-medium">Freeze Tokens Available: {streakData.freezeTokens}</p>
+                <p className="text-blue-600 dark:text-blue-300 text-sm">Use to preserve your streak if you miss a day</p>
+              </div>
+              <button
+                onClick={async () => {
+                  const result = await useFreezeToken();
+                  if (result) {
+                    setStreakData(prev => ({ ...prev, freezeTokens: prev.freezeTokens - 1 }));
+                    alert('Freeze token used! Your streak is preserved.');
+                  }
+                }}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+              >
+                Use Freeze Token
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">

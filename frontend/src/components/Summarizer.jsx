@@ -1,10 +1,12 @@
 // src/components/Summarizer.jsx
 import React, { useState } from "react";
+import { useData } from "../contexts/DataContext";
 
 export default function Summarizer() {
   const [input, setInput] = useState("");
   const [summary, setSummary] = useState("");
   const [loading, setLoading] = useState(false);
+  const { logStreakEvent } = useData();
 
   const handleSummarize = async () => {
     setLoading(true);
@@ -24,6 +26,11 @@ export default function Summarizer() {
 
       const result = await response.json();
       setSummary(result.summary || "Could not generate summary");
+
+      // Log streak event for AI summarization
+      if (result.summary) {
+        await logStreakEvent('ai_session', { contentLength: input.length });
+      }
     } catch (err) {
       setSummary("❌ " + err.message);
     }

@@ -1,3 +1,4 @@
+// src/App.jsx
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
@@ -11,16 +12,17 @@ import SignupPage from './pages/SignupPage';
 import Dashboard from './pages/Dashboard';
 import NotesPage from './pages/NotesPage';
 import AIToolsPage from './pages/AIToolsPage';
-//import VideoSummarizer from './components/VideoSummarizer';
 
 function App() {
   return (
-    <ThemeProvider>
-      <AuthProvider>
+    // 👇 Router is outermost, so all descendants can use useNavigate()
+    <Router>
+      <ThemeProvider>
         <DataProvider>
-          <Router>
+          <AuthProvider>
             <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
               <Navbar />
+
               <Routes>
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/login" element={<LoginPage />} />
@@ -28,12 +30,9 @@ function App() {
                 <Route
                   path="/dashboard"
                   element={
-                    <>
-                      <ProtectedRoute>
-                        <Dashboard />
-                      </ProtectedRoute>
-                      
-                    </>
+                    <ProtectedRoute>
+                      <Dashboard />
+                    </ProtectedRoute>
                   }
                 />
                 <Route
@@ -53,11 +52,14 @@ function App() {
                   }
                 />
               </Routes>
+
+              {/* Portal host INSIDE Router & providers */}
+              <div id="modal-root" />
             </div>
-          </Router>
+          </AuthProvider>
         </DataProvider>
-      </AuthProvider>
-    </ThemeProvider>
+      </ThemeProvider>
+    </Router>
   );
 }
 

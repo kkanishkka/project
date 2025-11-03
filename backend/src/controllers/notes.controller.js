@@ -1,9 +1,11 @@
 // controllers/notes.controller.js
 import { z } from "zod";
 import Note from "../models/Note.js";
+import Revision from "../models/Revision.js";
 
 const createSchema = z.object({
   title: z.string().min(1),
+  subject: z.string().min(1),
   content: z.string().optional(),
   tags: z.array(z.string()).optional(),
   revisionDate: z.string().optional(), // ISO date string
@@ -18,6 +20,16 @@ export const createNote = async (req, res, next) => {
   try {
     const data = createSchema.parse(req.body);
     const note = await Note.create({ ...data, user: req.user.id });
+
+    // Schedule initial revision if provided
+    if (data.revisionDate) {
+      await Revision.create({
+        user: req.user.id,
+        note: note._id,
+        scheduledFor: new Date(data.revisionDate),
+        status: "pending",
+      });
+    }
     res.status(201).json(note);
   } catch (e) { next(e); }
 };
@@ -49,6 +61,20 @@ export const updateNote = async (req, res, next) => {
       { new: true }
     );
     if (!note) return res.status(404).json({ error: "Not found" });
+
+    // If revisionDate updated explicitly, reschedule pending revisions for this note
+    if (Object.prototype.hasOwnProperty.call(data, "revisionDate")) {
+      // Remove existing pending revisions for this note
+      await Revision.deleteMany({ user: req.user.id, note: note._id, status: "pending" });
+      if (data.revisionDate) {
+        await Revision.create({
+          user: req.user.id,
+          note: note._id,
+          scheduledFor: new Date(data.revisionDate),
+          status: "pending",
+        });
+      }
+    }
     res.json(note);
   } catch (e) { next(e); }
 };
@@ -58,6 +84,8 @@ export const deleteNote = async (req, res, next) => {
   try {
     const result = await Note.deleteOne({ _id: req.params.id, user: req.user.id });
     if (!result.deletedCount) return res.status(404).json({ error: "Not found" });
+    // Cascade delete revisions for this note
+    await Revision.deleteMany({ user: req.user.id, note: req.params.id });
     res.status(204).end();
   } catch (e) { next(e); }
 };
