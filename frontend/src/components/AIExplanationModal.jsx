@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { X, Brain, Sparkles, BookOpen, Lightbulb } from 'lucide-react';
 
+const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
 const AIExplanationModal = ({ term, onClose }) => {
   const [explanation, setExplanation] = useState('');
   const [loading, setLoading] = useState(true);
@@ -11,11 +13,17 @@ const AIExplanationModal = ({ term, onClose }) => {
       setLoading(true);
       try {
         // Use your backend endpoint here to proxy Hugging Face API calls
-        const response = await fetch('http://localhost:5000/api/explanation', {  // Adjust URL if needed
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ term }),
-        });
+       const token = localStorage.getItem("thinkstash_token");
+
+const response = await fetch(`${API}/api/ai/explanation`, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "Authorization": `Bearer ${token}`,
+  },
+  body: JSON.stringify({ term }),
+});
+
 
         const data = await response.json();
 

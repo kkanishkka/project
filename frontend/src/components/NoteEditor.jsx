@@ -55,25 +55,30 @@ const NoteEditor = ({ note, onClose }) => {
 
     setLoading(true);
     try {
+      // ✅ Safely determine the current note's ID (if editing)
+      const noteId = note?._id || note?.id || null;
+
       let result;
-      if (note && note._id) {
-        result = await updateNote(note._id, formData);
+      if (noteId) {
+        // Editing existing note
+        result = await updateNote(noteId, formData);
         if (result.success) {
-          // Log streak event for note edit (meaningful edit detection)
+          // Log streak event for meaningful edit
           const contentLength = formData.content.replace(/<[^>]*>/g, '').length;
           if (contentLength >= 20) {
-            await logStreakEvent('note', { noteId: note._id, editLength: contentLength });
+            await logStreakEvent('note', { noteId, editLength: contentLength });
           }
           onClose();
         } else {
           setErrors({ general: result.error || 'Failed to update note. Please try again.' });
         }
       } else {
+        // Creating new note
         result = await addNote(formData);
         if (result.success) {
-          // Log streak event for new note creation
           const contentLength = formData.content.replace(/<[^>]*>/g, '').length;
           if (contentLength >= 20) {
+            // We might not have the new note ID here, so only send editLength
             await logStreakEvent('note', { editLength: contentLength });
           }
           onClose();
@@ -156,7 +161,7 @@ const NoteEditor = ({ note, onClose }) => {
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-            {note && note._id ? 'Edit Note' : 'Create New Note'}
+            {note && (note._id || note.id) ? 'Edit Note' : 'Create New Note'}
           </h2>
           <button
             onClick={onClose}
@@ -264,10 +269,12 @@ const NoteEditor = ({ note, onClose }) => {
                 <p className="text-blue-700 dark:text-blue-300 text-sm">{aiSummary}</p>
               </div>
             )}
+
           </div>
 
           {/* Non-scrollable footer: always visible */}
-          <div className="shrink-0 flex items-center justify-end space-x-3 p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+          <div className="shrink-0 flex items-center justify-end space-x-3 p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-9
+00">
             <button
               type="button"
               onClick={onClose}

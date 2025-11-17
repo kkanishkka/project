@@ -8,34 +8,42 @@ export default function Summarizer() {
   const [loading, setLoading] = useState(false);
   const { logStreakEvent } = useData();
 
-  const handleSummarize = async () => {
-    setLoading(true);
-    setSummary("");
-    try {
-      const response = await fetch("http://localhost:5000/api/summarize", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ content: input }),
-      });
+  const API = import.meta.env.VITE_API_URL;
 
-      if (!response.ok) {
-        throw new Error("Summarization API failed");
-      }
+//const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
-      const result = await response.json();
-      setSummary(result.summary || "Could not generate summary");
+const handleSummarize = async () => {
+  setLoading(true);
+  setSummary("");
+  try {
+    const token = localStorage.getItem("thinkstash_token");
 
-      // Log streak event for AI summarization
-      if (result.summary) {
-        await logStreakEvent('ai_session', { contentLength: input.length });
-      }
-    } catch (err) {
-      setSummary("❌ " + err.message);
+    const response = await fetch(`${API}/api/ai/summarize`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`,
+      },
+      body: JSON.stringify({ content: input }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.error || "Summarization API failed");
     }
-    setLoading(false);
-  };
+
+    setSummary(result.summary || "Could not generate summary");
+
+    if (result.summary) {
+      await logStreakEvent("ai_session", { contentLength: input.length });
+    }
+  } catch (err) {
+    setSummary("❌ " + err.message);
+  }
+  setLoading(false);
+};
+
 
   const handleClear = () => {
     setInput("");

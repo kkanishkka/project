@@ -12,10 +12,10 @@ import SignupPage from './pages/SignupPage';
 import Dashboard from './pages/Dashboard';
 import NotesPage from './pages/NotesPage';
 import AIToolsPage from './pages/AIToolsPage';
+import ReviewModePage from "./pages/ReviewModePage";
 
 function App() {
   return (
-    // 👇 Router is outermost, so all descendants can use useNavigate()
     <Router>
       <ThemeProvider>
         <DataProvider>
@@ -23,10 +23,12 @@ function App() {
             <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
               <Navbar />
 
+              {/* ✅ All routes must be INSIDE <Routes> */}
               <Routes>
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/signup" element={<SignupPage />} />
+
                 <Route
                   path="/dashboard"
                   element={
@@ -35,6 +37,7 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
+
                 <Route
                   path="/notes"
                   element={
@@ -43,6 +46,7 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
+
                 <Route
                   path="/ai-tools"
                   element={
@@ -51,9 +55,19 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
+
+                {/* ✅ MOVED REVIEW ROUTE INSIDE ROUTES */}
+                <Route
+                  path="/review"
+                  element={
+                    <ProtectedRoute>
+                      <ReviewModePage />
+                    </ProtectedRoute>
+                  }
+                />
               </Routes>
 
-              {/* Portal host INSIDE Router & providers */}
+              {/* Modal Portal */}
               <div id="modal-root" />
             </div>
           </AuthProvider>

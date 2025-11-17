@@ -8,6 +8,11 @@ import noteRoutes from "./routes/notes.routes.js";
 import aiRoutes from "./routes/ai.routes.js";
 import streakRoutes from "./routes/streak.routes.js";
 import revisionRoutes from "./routes/revisions.routes.js";
+import flashcardRoutes from "./routes/flashcards.routes.js";
+import quizRoutes from "./routes/quizzes.routes.js";
+import youtubeSummaryRoutes from "./routes/youtubeSummary.routes.js";
+
+
 import { notFound, errorHandler } from "./middleware/error.js";
 
 const app = express();
@@ -54,8 +59,15 @@ app.get("/health", (_req, res) => res.json({ ok: true }));
 app.use("/api/auth", authRoutes);
 app.use("/api/notes", noteRoutes);
 app.use("/api/revisions", revisionRoutes);
-app.use("/api", aiRoutes);         
+app.use("/api", aiRoutes);
+app.use("/api", flashcardRoutes);
 app.use("/api/streak", streakRoutes);
+app.use("/api", quizRoutes);
+app.use("/api", youtubeSummaryRoutes);
+app.use("/api/ai", aiRouter);
+
+
+
 
 
 app.use(notFound);

@@ -1,44 +1,63 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { useData } from '../contexts/DataContext';
-import PingData from '../components/PingData';
+// src/pages/Dashboard.jsx
+import React, { useState, useEffect, useMemo } from "react";
+import { Link } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
+import { useData } from "../contexts/DataContext";
+import PingData from "../components/PingData";
+import RevisionModal from "../components/RevisionModal";
+import ReviewDifficultyModal from "../components/ReviewDifficultyModal";
+
 import {
   BookOpen,
   Plus,
   Brain,
   Target,
   Clock,
-  TrendingUp,
   Calendar,
   Award,
   Youtube,
-  Flame
-} from 'lucide-react';
+  Flame,
+} from "lucide-react";
 
+// ---------- YouTube summarizer modal ----------
 const YouTubeSummarizerModal = ({ onClose }) => {
-  const [url, setUrl] = useState('');
+  const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [summary, setSummary] = useState('');
+  const [error, setError] = useState("");
+  const [summary, setSummary] = useState("");
 
-  // Frontend .env → VITE_API_URL=http://localhost:5000
-  const API = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  const API = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
-  const handleSummarize = async () => {
-    if (!url.trim()) return setError('Please paste a YouTube link.');
+   const handleSummarize = async () => {
+    if (!url.trim()) return setError("Please paste a YouTube link.");
     setLoading(true);
-    setError('');
-    setSummary('');
+    setError("");
+    setSummary("");
+
     try {
-      const res = await fetch(`${API}/api/youtube-summary`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url }),
-      });
+      const token = localStorage.getItem("thinkstash_token"); // 👈 same key as rest of app
+
+      if (!token) {
+        setLoading(false);
+        setError("Please log in again to use YouTube Summary.");
+        return;
+      }
+
+    //const token = localStorage.getItem("thinkstash_token");
+
+const res = await fetch(`${API}/api/youtube-summary`, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+   Authorization: `Bearer ${localStorage.getItem("thinkstash_token")}`,
+  },
+  body: JSON.stringify({ youtubeUrl: url }), // 👈 IMPORTANT: youtubeUrl, not url
+});
+
+
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to summarize');
-      setSummary(data.summary || '(No summary returned)');
+      if (!res.ok) throw new Error(data.error || "Failed to summarize");
+      setSummary(data.summary || "(No summary returned)");
     } catch (e) {
       setError(e.message);
     } finally {
@@ -65,7 +84,7 @@ const YouTubeSummarizerModal = ({ onClose }) => {
           type="text"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          placeholder="Paste YouTube link (https://youtu.be/... or https://www.youtube.com/watch?v=...)"
+          placeholder="Paste YouTube link"
           className="w-full p-2 mb-4 border rounded-md dark:bg-gray-800 dark:text-white"
         />
 
@@ -74,14 +93,16 @@ const YouTubeSummarizerModal = ({ onClose }) => {
           disabled={!url || loading}
           className="bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white py-2 px-4 rounded"
         >
-          {loading ? 'Summarizing...' : 'Summarize'}
+          {loading ? "Summarizing..." : "Summarize"}
         </button>
 
         {error && <div className="mt-3 text-red-500 text-sm">{error}</div>}
 
         {summary && (
           <div className="mt-4">
-            <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Summary</h3>
+            <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
+              Summary
+            </h3>
             <div className="prose dark:prose-invert max-w-none text-sm leading-6 whitespace-pre-wrap">
               {summary}
             </div>
@@ -100,82 +121,167 @@ const YouTubeSummarizerModal = ({ onClose }) => {
   );
 };
 
+// ---------- Main Dashboard ----------
 const Dashboard = () => {
-  const { user } = useAuth();
-  const { notes, getStreakData, useFreezeToken } = useData();
-  const [showYouTubeModal, setShowYouTubeModal] = useState(false);
-  const [streakData, setStreakData] = useState({ currentStreak: 0, longestStreak: 0, freezeTokens: 0 });
-  const [streakMessage, setStreakMessage] = useState('');
+ const { user } = useAuth();
+const { notes, getStreakData, useFreezeToken, reviewNote, reviewQueue } = useData();
 
+
+  const [showYouTubeModal, setShowYouTubeModal] = useState(false);
+  const [streakData, setStreakData] = useState({
+    currentStreak: 0,
+    longestStreak: 0,
+    freezeTokens: 0,
+  });
+  const [streakMessage, setStreakMessage] = useState("");
+
+  // spaced repetition modal state
+  const [selectedNote, setSelectedNote] = useState(null);
+  const [submittingReview, setSubmittingReview] = useState(false);
+
+  // -------- Streak fetching --------
   useEffect(() => {
     const fetchStreak = async () => {
       const data = await getStreakData();
       setStreakData(data);
 
-      // Set streak milestone message
       if (data.currentStreak > 0) {
-        if (data.currentStreak === 7) setStreakMessage('🎉 Week streak! Keep it up!');
-        else if (data.currentStreak === 30) setStreakMessage('🏆 Month streak! Amazing dedication!');
-        else if (data.currentStreak === 100) setStreakMessage('🌟 Century streak! Legendary!');
-        else if (data.currentStreak % 10 === 0) setStreakMessage(`🔥 ${data.currentStreak} days! You're on fire!`);
+        if (data.currentStreak === 7)
+          setStreakMessage("🎉 Week streak! Keep it up!");
+        else if (data.currentStreak === 30)
+          setStreakMessage("🏆 Month streak! Amazing dedication!");
+        else if (data.currentStreak === 100)
+          setStreakMessage("🌟 Century streak! Legendary!");
+        else if (data.currentStreak % 10 === 0)
+          setStreakMessage(`🔥 ${data.currentStreak} days! You're on fire!`);
       }
     };
     fetchStreak();
   }, [getStreakData]);
 
+  const openReviewModal = (note) => {
+    setSelectedNote(note);
+  };
+
+  const closeReviewModal = () => {
+    if (submittingReview) return;
+    setSelectedNote(null);
+  };
+
+  const handleDifficultySelect = async (difficulty) => {
+    if (!selectedNote) return;
+    setSubmittingReview(true);
+    await reviewNote(selectedNote._id || selectedNote.id, difficulty);
+    setSubmittingReview(false);
+    setSelectedNote(null);
+  };
+
+    // how many notes are scheduled for review (have nextReviewAt or revisionDate)
+   // how many notes are in Review Mode (same as /review page)
+const scheduledReviewCount = useMemo(() => {
+  if (!Array.isArray(reviewQueue)) return 0;
+  return reviewQueue.length;
+}, [reviewQueue]);
+
+
+
+  // -------- Stats cards --------
   const stats = [
-    { title: 'Total Notes', value: notes.length, icon: <BookOpen className="h-6 w-6" />, color: 'bg-blue-500', change: '+12%' },
-    { title: 'Study Streak', value: `${streakData.currentStreak} days`, icon: <Flame className="h-6 w-6" />, color: 'bg-orange-500', change: streakData.currentStreak > 0 ? '🔥' : 'Start today!' },
-    { title: 'Reviews Due', value: Math.floor(notes.length * 0.3), icon: <Clock className="h-6 w-6" />, color: 'bg-orange-500', change: 'Today' },
-    { title: 'Mastery Score', value: '82%', icon: <Award className="h-6 w-6" />, color: 'bg-purple-500', change: '+5%' }
+    {
+      title: "Total Notes",
+      value: notes.length,
+      icon: <BookOpen className="h-6 w-6" />,
+      color: "bg-blue-500",
+      change: "+12%",
+    },
+    {
+      title: "Study Streak",
+      value: `${streakData.currentStreak} days`,
+      icon: <Flame className="h-6 w-6" />,
+      color: "bg-orange-500",
+      change: streakData.currentStreak > 0 ? "🔥" : "Start today!",
+    },
+   {
+  title: "Reviews Due",
+  value: scheduledReviewCount,
+  icon: <Clock className="h-6 w-6" />,
+  color: "bg-orange-500",
+  change: "Scheduled",
+},
+
+    {
+      title: "Mastery Score",
+      value: "82%",
+      icon: <Award className="h-6 w-6" />,
+      color: "bg-purple-500",
+      change: "+5%",
+    },
   ];
 
-  const recentNotes = notes.slice(-3).reverse();
+  // -------- Recent Notes (newest first) --------
+  const recentNotes = useMemo(() => {
+    if (!Array.isArray(notes)) return [];
+    return [...notes]
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt || b.updatedAt || 0) -
+          new Date(a.createdAt || a.updatedAt || 0)
+      )
+      .slice(0, 3);
+  }, [notes]);
 
-  const upcomingReviews = notes
-    .filter(note => note.revisionDate)
-    .sort((a, b) => new Date(a.revisionDate) - new Date(b.revisionDate))
-    .slice(0, 5);
-
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffTime = date - now;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    if (diffDays === 0) return 'Today';
-    if (diffDays === 1) return 'Tomorrow';
-    if (diffDays < 7) return `${diffDays} days`;
-    return date.toLocaleDateString();
-  };
+  // -------- Revision list (spaced repetition) --------
+  const upcomingReviews = useMemo(() => {
+    if (!Array.isArray(notes)) return [];
+    return notes
+      .filter((note) => note.nextReviewAt || note.revisionDate)
+      .sort(
+        (a, b) =>
+          new Date(a.nextReviewAt || a.revisionDate) -
+          new Date(b.nextReviewAt || b.revisionDate)
+      )
+      .slice(0, 5);
+  }, [notes]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
       <PingData />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header + streak */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
             Welcome back, {user?.name}!
           </h1>
           <p className="text-gray-600 dark:text-gray-300 mt-2">
-            Ready to continue your learning journey? Here's your progress overview.
+            Ready to continue your learning journey? Here's your progress
+            overview.
           </p>
           {streakMessage && (
             <div className="mt-4 p-4 bg-gradient-to-r from-orange-100 to-red-100 dark:from-orange-900 dark:to-red-900 rounded-lg border border-orange-200 dark:border-orange-700">
-              <p className="text-orange-800 dark:text-orange-200 font-medium">{streakMessage}</p>
+              <p className="text-orange-800 dark:text-orange-200 font-medium">
+                {streakMessage}
+              </p>
             </div>
           )}
           {streakData.freezeTokens > 0 && (
             <div className="mt-4 flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-900 rounded-lg border border-blue-200 dark:border-blue-700">
               <div>
-                <p className="text-blue-800 dark:text-blue-200 font-medium">Freeze Tokens Available: {streakData.freezeTokens}</p>
-                <p className="text-blue-600 dark:text-blue-300 text-sm">Use to preserve your streak if you miss a day</p>
+                <p className="text-blue-800 dark:text-blue-200 font-medium">
+                  Freeze Tokens Available: {streakData.freezeTokens}
+                </p>
+                <p className="text-blue-600 dark:text-blue-300 text-sm">
+                  Use to preserve your streak if you miss a day
+                </p>
               </div>
               <button
                 onClick={async () => {
                   const result = await useFreezeToken();
                   if (result) {
-                    setStreakData(prev => ({ ...prev, freezeTokens: prev.freezeTokens - 1 }));
-                    alert('Freeze token used! Your streak is preserved.');
+                    setStreakData((prev) => ({
+                      ...prev,
+                      freezeTokens: prev.freezeTokens - 1,
+                    }));
+                    alert("Freeze token used! Your streak is preserved.");
                   }
                 }}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
@@ -186,30 +292,50 @@ const Dashboard = () => {
           )}
         </div>
 
+        {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {stats.map((stat, index) => (
-            <div key={index} className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+            <div
+              key={index}
+              className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6"
+            >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{stat.title}</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{stat.value}</p>
-                  <p className="text-xs text-green-600 dark:text-green-400 mt-1">{stat.change}</p>
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                    {stat.title}
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                    {stat.value}
+                  </p>
+                  <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                    {stat.change}
+                  </p>
                 </div>
-                <div className={`${stat.color} p-3 rounded-full text-white`}>{stat.icon}</div>
+                <div className={`${stat.color} p-3 rounded-full text-white`}>
+                  {stat.icon}
+                </div>
               </div>
             </div>
           ))}
         </div>
 
+        {/* Quick actions */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
-          <Link to="/notes" className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow group">
+          <Link
+            to="/notes"
+            className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow group"
+          >
             <div className="flex items-center space-x-4">
               <div className="bg-blue-100 dark:bg-blue-900 p-3 rounded-full group-hover:bg-blue-200 dark:group-hover:bg-blue-800 transition-colors">
                 <Plus className="h-6 w-6 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Create New Note</h3>
-                <p className="text-gray-600 dark:text-gray-300 text-sm">Start capturing your ideas</p>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Create New Note
+                </h3>
+                <p className="text-gray-600 dark:text-gray-300 text-sm">
+                  Start capturing your ideas
+                </p>
               </div>
             </div>
           </Link>
@@ -220,23 +346,32 @@ const Dashboard = () => {
                 <Brain className="h-6 w-6 text-purple-600 dark:text-purple-400" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">AI Study Session</h3>
-                <p className="text-gray-600 dark:text-gray-300 text-sm">Generate flashcards & quizzes</p>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  AI Study Session
+                </h3>
+                <p className="text-gray-600 dark:text-gray-300 text-sm">
+                  Generate flashcards & quizzes
+                </p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow group cursor-pointer">
-            <div className="flex items-center space-x-4">
-              <div className="bg-green-100 dark:bg-green-900 p-3 rounded-full group-hover:bg-green-200 dark:group-hover:bg-green-800 transition-colors">
-                <Target className="h-6 w-6 text-green-600 dark:text-green-400" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Review Mode</h3>
-                <p className="text-gray-600 dark:text-gray-300 text-sm">Practice with spaced repetition</p>
+          <Link
+            to="/review"
+            className="block rounded-2xl border border-gray-200 px-6 py-4 hover:shadow-sm transition bg-white dark:bg-gray-800"
+          >
+            <div className="flex items-center">
+              <Target className="h-5 w-5 text-gray-500" />
+              <div className="ml-3">
+                <div className="font-semibold text-gray-900 dark:text-white">
+                  Review Mode
+                </div>
+                <div className="text-sm text-gray-500 dark:text-gray-300">
+                  Practice with spaced repetition
+                </div>
               </div>
             </div>
-          </div>
+          </Link>
 
           <div
             onClick={() => setShowYouTubeModal(true)}
@@ -247,30 +382,54 @@ const Dashboard = () => {
                 <Youtube className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">YouTube Summary</h3>
-                <p className="text-gray-600 dark:text-gray-300 text-sm">Summarize YouTube videos</p>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  YouTube Summary
+                </h3>
+                <p className="text-gray-600 dark:text-gray-300 text-sm">
+                  Summarize YouTube videos
+                </p>
               </div>
             </div>
           </div>
         </div>
 
+        {/* Recent + Revision */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Recent Notes */}
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Recent Notes</h2>
-              <Link to="/notes" className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm font-medium">View All</Link>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                Recent Notes
+              </h2>
+              <Link
+                to="/notes"
+                className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm font-medium"
+              >
+                View All
+              </Link>
             </div>
             {recentNotes.length > 0 ? (
               <div className="space-y-3">
                 {recentNotes.map((note) => (
-                  <div key={note.id} className="border dark:border-gray-700 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                  <div
+                    key={note._id || note.id}
+                    className="border dark:border-gray-700 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  >
                     <div className="flex items-start justify-between mb-2">
-                      <h3 className="font-medium text-gray-900 dark:text-white truncate">{note.title}</h3>
-                      <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap ml-2">{new Date(note.createdAt).toLocaleDateString()}</span>
+                      <h3 className="font-medium text-gray-900 dark:text-white truncate">
+                        {note.title}
+                      </h3>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap ml-2">
+                        {new Date(
+                          note.createdAt || note.updatedAt
+                        ).toLocaleDateString()}
+                      </span>
                     </div>
                     <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">
-                      {note.content.replace(/<[^>]*>/g, '').substring(0, 100)}...
+                      {note.content
+                        ? note.content.replace(/<[^>]*>/g, "").substring(0, 100)
+                        : ""}
+                      {note.content && "..."}
                     </p>
                     <div className="flex items-center mt-2">
                       <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
@@ -284,50 +443,83 @@ const Dashboard = () => {
               <div className="text-center py-8">
                 <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <p className="text-gray-500 dark:text-gray-400">No notes yet</p>
-                <Link to="/notes" className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm font-medium">Create your first note</Link>
+                <Link
+                  to="/notes"
+                  className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm font-medium"
+                >
+                  Create your first note
+                </Link>
               </div>
             )}
           </div>
 
-          {/* Upcoming Reviews */}
+          {/* Revision / Spaced Repetition */}
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">REVISION</h2>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                REVISION
+              </h2>
               <Calendar className="h-5 w-5 text-gray-400" />
             </div>
+
             {upcomingReviews.length > 0 ? (
               <div className="space-y-3">
-                {upcomingReviews.map((note) => (
-                  <div key={note.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{note.title}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">{note.subject}</p>
+                {upcomingReviews.map((note) => {
+                  const dateSource = note.nextReviewAt || note.revisionDate;
+                  return (
+                    <div
+                      key={note._id || note.id}
+                      className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                          {note.title}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          {note.subject}
+                        </p>
+                      </div>
+                      {/* Only show the revision date */}
+                      <p className="text-xs font-medium text-gray-900 dark:text-gray-100 text-right">
+                        {new Date(dateSource).toLocaleDateString()}
+                      </p>
                     </div>
-                    <div className="text-right">
-                      <p className="text-xs font-medium text-gray-900 dark:text-white">{formatDate(note.revisionDate)}</p>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="text-center py-8">
                 <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500 dark:text-gray-400">No reviews scheduled</p>
-                <p className="text-sm text-gray-400 dark:text-gray-500">Create notes to see review schedule</p>
+                <p className="text-gray-500 dark:text-gray-400">
+                  No reviews scheduled
+                </p>
+                <p className="text-sm text-gray-400 dark:text-gray-500">
+                  Create notes and set revision dates to see your schedule here.
+                </p>
               </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* hidden fallback opener for modal (optional) */}
-      <button onClick={() => setShowYouTubeModal(true)} style={{ display: 'none' }}>
+      {/* hidden YouTube modal opener (for keyboard/other triggers if needed) */}
+      <button
+        onClick={() => setShowYouTubeModal(true)}
+        style={{ display: "none" }}
+      >
         Open YouTube Summarizer
       </button>
 
       {showYouTubeModal && (
         <YouTubeSummarizerModal onClose={() => setShowYouTubeModal(false)} />
       )}
+
+      {/* spaced repetition difficulty modal */}
+      <ReviewDifficultyModal
+        note={selectedNote}
+        onClose={closeReviewModal}
+        onSelectDifficulty={handleDifficultySelect}
+      />
     </div>
   );
 };
