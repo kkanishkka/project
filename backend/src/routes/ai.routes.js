@@ -1,18 +1,25 @@
+// backend/src/routes/ai.routes.js
 import { Router } from "express";
-import { requireAuth } from "../middleware/auth.js";
 import {
   getExplanation,
-  getNoteSummary,
+  generateNoteSummary,
   summarizeText,
-  summarizeYouTube
+  summarizeYouTube,
 } from "../controllers/ai.controller.js";
 
 const router = Router();
-router.use(requireAuth);
 
+// Explain a term
 router.post("/explanation", getExplanation);
-router.post("/note-summary", getNoteSummary);
-router.post("/summarize", summarizeText);
-router.post("/youtube-summary", summarizeYouTube);
+router.post("/summarize", generateNoteSummary);
+
+// Summarize a note using HuggingFace
+router.post("/note-summary", generateNoteSummary);
+
+// Summarize arbitrary text (local model)
+router.post("/summarize-text", summarizeText);
+
+// Summarize YouTube video
+router.post("/summarize-youtube", summarizeYouTube);
 
 export default router;

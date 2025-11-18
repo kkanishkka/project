@@ -15,6 +15,7 @@ import {
 import ReviewDifficultyModal from "../components/ReviewDifficultyModal";
 
 
+
 const AIToolsPage = () => {
   const {
     notes,
@@ -35,6 +36,13 @@ const AIToolsPage = () => {
 
   const [selectedNote, setSelectedNote] = useState(null);
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [manualText, setManualText] = useState("");
+  const [manualSummary, setManualSummary] = useState("");
+  const [noteSummaries, setNoteSummaries] = useState({});
+
+  
+
+
 
   // ⭐ OPEN MODAL
 const openReviewModal = (note) => {
@@ -56,6 +64,33 @@ const handleDifficultySelect = async (difficulty) => {
 
   setSelectedNote(null);
 };
+const handleManualSummarize = async () => {
+  if (!manualText.trim()) {
+    alert("Please enter some text");
+    return;
+  }
+  const summary = await generateAISummary(manualText);
+  setManualSummary(summary);
+};
+
+const handleGenerateNoteSummary = async (note) => {
+  const summary = await generateAISummary(note.content || "");
+  setNoteSummaries((prev) => ({
+    ...prev,
+    [note._id || note.id]: summary,
+  }));
+};
+
+
+const handleCloseSummary = (noteId) => {
+  setNoteSummaries((prev) => {
+    const copy = { ...prev };
+    delete copy[noteId];
+    return copy;
+  });
+};
+
+
 
 
 
@@ -411,51 +446,71 @@ const handleDifficultySelect = async (difficulty) => {
                     quickly review key concepts.
                   </p>
                 </div>
-                <Summarizer />
+          <Summarizer />
 
-                {notes.length > 0 ? (
-                  <div className="space-y-4">
-                    {notes.map((note) => (
-                      <div
-                        key={note._id || note.id}
-                        className="border dark:border-gray-700 rounded-lg p-4"
-                      >
-                        <div className="flex items-start justify-between mb-3">
-                          <div>
-                            <h3 className="font-medium text-gray-900 dark:text-white">
-                              {note.title}
-                            </h3>
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 mt-1">
-                              {note.subject}
-                            </span>
-                          </div>
-                          <button
-                            onClick={async () => {
-                              const summary = await generateAISummary(
-                                note.content
-                              );
-                              alert(`AI Summary:\n\n${summary}`);
-                            }}
-                            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center space-x-2 shadow-sm"
-                          >
-                            <Sparkles className="h-4 w-4" />
-                            <span>Generate Summary</span>
-                          </button>
-                        </div>
-                        <p className="text-sm text-gray-600 dark:text-gray-300">
-                          {/* Summary will be displayed here */}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500 dark:text-gray-400">
-                      Create some notes to see AI-generated summaries.
-                    </p>
-                  </div>
-                )}
+{notes.length > 0 ? (
+  <div className="space-y-4 mt-4">
+    {notes.map((note) => {
+      const noteId = note._id || note.id;
+      const summary = noteSummaries[noteId];
+
+      return (
+        <div
+          key={noteId}
+          className="border dark:border-gray-700 rounded-lg p-4"
+        >
+          <div className="flex items-start justify-between mb-3">
+            <div>
+              <h3 className="font-medium text-gray-900 dark:text-white">
+                {note.title}
+              </h3>
+              {note.subject && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 mt-1">
+                  {note.subject}
+                </span>
+              )}
+            </div>
+            <button
+              onClick={() => handleGenerateNoteSummary(note)}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center space-x-2 shadow-sm"
+            >
+              <Sparkles className="h-4 w-4" />
+              <span>Generate Summary</span>
+            </button>
+          </div>
+
+          {/* Summary box under the note */}
+          {summary && (
+            <div className="mt-3 rounded-lg bg-gray-50 dark:bg-gray-800 border border-blue-200 dark:border-blue-500/40 p-3">
+              <div className="flex items-start justify-between mb-2">
+                <h4 className="text-sm font-semibold text-blue-700 dark:text-blue-300">
+                  AI Summary
+                </h4>
+                <button
+                  onClick={() => handleCloseSummary(noteId)}
+                  className="text-xs px-2 py-1 rounded-md bg-blue-600 text-white hover:bg-blue-700"
+                >
+                  Done
+                </button>
+              </div>
+              <p className="text-sm text-gray-700 dark:text-gray-200 whitespace-pre-line">
+                {summary}
+              </p>
+            </div>
+          )}
+        </div>
+      );
+    })}
+  </div>
+) : (
+  <div className="text-center py-8">
+    <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+    <p className="text-gray-500 dark:text-gray-400">
+      Create some notes to see AI-generated summaries.
+    </p>
+  </div>
+)}
+
               </div>
             )}
 
@@ -474,32 +529,34 @@ const handleDifficultySelect = async (difficulty) => {
 
                 {notes.length > 0 ? (
                   <div className="space-y-6">
-                    {notes.map((note) => (
-                      <div
-                        key={note._id || note.id}
-                        className="border dark:border-gray-700 rounded-lg p-4"
-                      >
-                        <div className="flex items-center justify-between mb-4">
-                          <div>
-                            <h3 className="font-medium text-gray-900 dark:text-white">
-                              {note.title}
-                            </h3>
-                            <span className="text-sm text-gray-500 dark:text-gray-400">
-                              {note.flashcardCount || 0} flashcards generated
-                            </span>
-                          </div>
-                         <button
-                          onClick={() => openReviewModal(note)}
-                          className="ml-4 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center space-x-2 shadow-sm"
-                        >
-                          <Clock className="h-4 w-4" />
-                          <span>Review</span>
-                          </button>
+                   {notes.map((note) => (
+  <div key={note._id} className="border rounded-md p-3 mb-3">
+    <div className="flex justify-between items-center mb-2">
+      <div>
+        <h3 className="font-semibold">{note.title}</h3>
+        {note.subject && (
+          <span className="inline-block text-xs mt-1 px-2 py-1 rounded-full bg-blue-100 text-blue-700">
+            {note.subject}
+          </span>
+        )}
+      </div>
+      <button
+        className="btn-primary"
+        onClick={() => handleGenerateNoteSummary(note)}
+      >
+        ⚡ Generate Summary
+      </button>
+    </div>
 
-                        </div>
-                        <FlashcardsSection note={note} />
-                      </div>
-                    ))}
+    {noteSummaries[note._id] && (
+      <div className="mt-2 p-2 bg-gray-50 rounded text-sm">
+        <strong>AI Summary:</strong>
+        <p>{noteSummaries[note._id]}</p>
+      </div>
+    )}
+  </div>
+))}
+
                   </div>
                 ) : (
                   <div className="text-center py-8">

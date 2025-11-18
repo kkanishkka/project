@@ -35,10 +35,7 @@ async function getSummarizer() {
 async function getTextGen() {
   if (!textGenPromise) {
     // Text2text model for explanation-style outputs
-    textGenPromise = pipeline(
-      "text2text-generation",
-      "Xenova/flan-t5-base"
-    );
+    textGenPromise = pipeline("text2text-generation", "Xenova/flan-t5-base");
   }
   return textGenPromise;
 }
@@ -86,8 +83,8 @@ export const getExplanation = async (req, res, next) => {
   }
 };
 
-// Summarize a note's content
-export const getNoteSummary = async (req, res, next) => {
+// Summarize a note's content using LOCAL Xenova model (no HF HTTP)
+export const generateNoteSummary = async (req, res, next) => {
   try {
     const { content } = summarySchema.parse(req.body);
 
@@ -105,13 +102,14 @@ export const getNoteSummary = async (req, res, next) => {
         ? output[0].summary_text.trim()
         : "No summary generated.";
 
-    res.json({ summary });
-  } catch (e) {
-    next(e);
+    return res.json({ summary });
+  } catch (err) {
+    console.error("Error in generateNoteSummary (local):", err);
+    next(err);
   }
 };
 
-// Summarize arbitrary text (AI tools “Summarize”)
+// Summarize arbitrary text (AI tools “Summarize”) – also local
 export const summarizeText = async (req, res, next) => {
   try {
     const { content } = summarySchema.parse(req.body);
@@ -136,7 +134,7 @@ export const summarizeText = async (req, res, next) => {
   }
 };
 
-// Summarize YouTube video from URL (best effort using youtube-transcript)
+// Summarize YouTube video from URL (still local summarizer)
 export const summarizeYouTube = async (req, res, next) => {
   try {
     const { youtubeUrl } = youtubeSchema.parse(req.body);

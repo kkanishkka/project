@@ -64,7 +64,7 @@ app.use("/api", flashcardRoutes);
 app.use("/api/streak", streakRoutes);
 app.use("/api", quizRoutes);
 app.use("/api", youtubeSummaryRoutes);
-app.use("/api/ai", aiRouter);
+app.use("/api/ai", aiRoutes);
 
 
 
